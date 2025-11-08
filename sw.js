@@ -1,9 +1,11 @@
 // A simple service worker for basic offline functionality
 
-const CACHE_NAME = 'medminder-cache-v1';
+const CACHE_NAME = 'medminder-cache-v2';
 const urlsToCache = [
   '/',
   '/index.html',
+  '/index.tsx',
+  '/manifest.json',
 ];
 
 // Install event: open a cache and add the core files to it
@@ -13,6 +15,9 @@ self.addEventListener('install', event => {
       .then(cache => {
         console.log('Opened cache');
         return cache.addAll(urlsToCache);
+      })
+      .catch(err => {
+        console.error('Failed to cache resources:', err);
       })
   );
   self.skipWaiting();

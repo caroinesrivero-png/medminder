@@ -62,6 +62,7 @@ const App: React.FC = () => {
     // PWA Install Prompt State
     const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [showInstallBanner, setShowInstallBanner] = useState(false);
+    const [isIos, setIsIos] = useState(false);
 
     const [modalState, setModalState] = useState<{
         isOpen: boolean;
@@ -95,7 +96,6 @@ const App: React.FC = () => {
 
     // Service Worker Registration and Install Prompt Listener
     useEffect(() => {
-        // Register Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
@@ -103,20 +103,31 @@ const App: React.FC = () => {
                     .catch(err => console.error('Service Worker registration failed:', err));
             });
         }
+        
+        const isIosDevice = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+        const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
+        
+        setIsIos(isIosDevice);
 
-        // Listen for 'beforeinstallprompt' event
         const handleBeforeInstallPrompt = (e: Event) => {
             e.preventDefault();
             setInstallPrompt(e as BeforeInstallPromptEvent);
-            setShowInstallBanner(true); // Show custom install banner
+            if (!isInStandaloneMode) {
+               setShowInstallBanner(true);
+            }
         };
         
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        
+        if (isIosDevice && !isInStandaloneMode) {
+            setShowInstallBanner(true);
+        }
 
         return () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         };
     }, []);
+
 
     // Load data from localStorage on initial render
     useEffect(() => {
@@ -490,6 +501,57 @@ const App: React.FC = () => {
         );
     };
 
+    const renderInstallBanner = () => {
+        if (!showInstallBanner) return null;
+    
+        if (installPrompt) {
+          return (
+            <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 max-w-md bg-indigo-600 text-white p-4 rounded-lg shadow-lg flex items-center justify-between z-50 animate-fade-in">
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <div className="ml-3">
+                  <p className="font-bold">Instala MedMinder</p>
+                  <p className="text-sm text-indigo-200">Accede más rápido desde tu pantalla de inicio.</p>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <button onClick={handleInstallClick} className="bg-white text-indigo-600 font-bold py-1 px-3 rounded-md hover:bg-indigo-100 transition-colors">
+                  Instalar
+                </button>
+                <button onClick={() => setShowInstallBanner(false)} className="ml-2 p-1 text-indigo-200 hover:text-white rounded-full" aria-label="Cerrar">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          );
+        }
+    
+        if (isIos) {
+          return (
+            <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 max-w-md bg-indigo-600 text-white p-4 rounded-lg shadow-lg flex items-center justify-between z-50 animate-fade-in">
+              <div className="flex items-center">
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                <div className="ml-3">
+                  <p className="font-bold">Instala MedMinder</p>
+                  <p className="text-sm text-indigo-200">Toca el ícono de Compartir y "Agregar a Inicio".</p>
+                </div>
+              </div>
+              <button onClick={() => setShowInstallBanner(false)} className="ml-2 p-1 text-indigo-200 hover:text-white rounded-full flex-shrink-0" aria-label="Cerrar">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          );
+        }
+    
+        return null;
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 font-sans p-4 sm:p-6 lg:p-8" onClick={handleCloseTooltip}>
              {tooltip.medId && (
@@ -552,25 +614,7 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            {showInstallBanner && (
-                <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 max-w-md bg-indigo-600 text-white p-4 rounded-lg shadow-lg flex items-center justify-between z-50 animate-fade-in">
-                    <div className="flex items-center">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        <div className="ml-3">
-                            <p className="font-bold">Instala MedMinder</p>
-                            <p className="text-sm text-indigo-200">Accede más rápido desde tu pantalla de inicio.</p>
-                        </div>
-                    </div>
-                     <div className="flex items-center">
-                        <button onClick={handleInstallClick} className="bg-white text-indigo-600 font-bold py-1 px-3 rounded-md hover:bg-indigo-100 transition-colors">
-                            Instalar
-                        </button>
-                        <button onClick={() => setShowInstallBanner(false)} className="ml-2 p-1 text-indigo-200 hover:text-white rounded-full" aria-label="Cerrar">
-                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                    </div>
-                </div>
-            )}
+            {renderInstallBanner()}
 
             <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
                 <header className="p-4 sm:p-6 bg-indigo-600 text-white">

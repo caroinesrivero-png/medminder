@@ -3,14 +3,41 @@
   "name": "MedMinder: Recordatorio de Remedios",
   "icons": [
     {
+      "src": "https://www.gstatic.com/images/branding/product/1x/google_cloud_48dp.png",
+      "type": "image/png",
+      "sizes": "48x48"
+    },
+    {
+      "src": "https://www.gstatic.com/images/branding/product/1x/google_cloud_72dp.png",
+      "type": "image/png",
+      "sizes": "72x72"
+    },
+    {
+      "src": "https://www.gstatic.com/images/branding/product/1x/google_cloud_96dp.png",
+      "type": "image/png",
+      "sizes": "96x96"
+    },
+    {
+      "src": "https://www.gstatic.com/images/branding/product/1x/google_cloud_144dp.png",
+      "type": "image/png",
+      "sizes": "144x144"
+    },
+    {
+      "src": "https://www.gstatic.com/images/branding/product/1x/google_cloud_168dp.png",
+      "type": "image/png",
+      "sizes": "168x168"
+    },
+    {
       "src": "https://www.gstatic.com/images/branding/product/1x/google_cloud_192dp.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "https://www.gstatic.com/images/branding/product/1x/google_cloud_512dp.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
   "start_url": ".",
