@@ -47,6 +47,10 @@ const App: React.FC = () => {
     const [archivedFiles, setArchivedFiles] = useState<ArchivedFile[]>([]);
 
     const { permission, requestPermission, showNotification } = useNotifications();
+    
+    // States for data persistence and UI feedback
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaved, setIsSaved] = useState(false);
 
     const [modalState, setModalState] = useState<{
         isOpen: boolean;
@@ -105,44 +109,36 @@ const App: React.FC = () => {
             }
         } catch (error) {
             console.error("Failed to load data from localStorage", error);
+        } finally {
+            setIsLoading(false);
         }
     }, [permission]);
 
-    // Save medications to localStorage
+    // Combined effect for saving all data to localStorage and showing feedback
     useEffect(() => {
+        if (isLoading) {
+            return; // Don't save until initial load is complete
+        }
+
         try {
             localStorage.setItem('medications', JSON.stringify(medications));
-        } catch (error) {
-            console.error("Failed to save medications to localStorage", error);
-        }
-    }, [medications]);
-
-    // Save journal entries to localStorage
-    useEffect(() => {
-        try {
             localStorage.setItem('journalEntries', JSON.stringify(journalEntries));
-        } catch (error) {
-            console.error("Failed to save journal entries to localStorage", error);
-        }
-    }, [journalEntries]);
-
-    // Save archived files to localStorage
-    useEffect(() => {
-        try {
             localStorage.setItem('archivedFiles', JSON.stringify(archivedFiles));
-        } catch (error) {
-            console.error("Failed to save archived files to localStorage", error);
-        }
-    }, [archivedFiles]);
-    
-    // Save appointments to localStorage
-    useEffect(() => {
-        try {
             localStorage.setItem('appointments', JSON.stringify(appointments));
+
+            // Trigger the save indicator
+            setIsSaved(true);
+            const timer = setTimeout(() => {
+                setIsSaved(false);
+            }, 1500); // Show for 1.5 seconds
+
+            // Cleanup the timer if the effect runs again before it fires
+            return () => clearTimeout(timer);
         } catch (error) {
-            console.error("Failed to save appointments to localStorage", error);
+            console.error("Failed to save data to localStorage", error);
         }
-    }, [appointments]);
+    }, [medications, journalEntries, archivedFiles, appointments]);
+
 
     // --- REMINDER LOGIC ---
 
@@ -510,6 +506,14 @@ const App: React.FC = () => {
                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
                              </svg>
                             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">MedMinder</h1>
+                            {isSaved && (
+                                <div className="flex items-center space-x-1 bg-white/20 text-white text-xs font-semibold px-2 py-1 rounded-full animate-fade-in-fast">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                    <span>Guardado</span>
+                                </div>
+                            )}
                         </div>
                         
                         <div className="bg-indigo-700 p-1 rounded-full flex items-center space-x-1 flex-wrap justify-center">
