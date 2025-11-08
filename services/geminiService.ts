@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 // The API key is expected to be set in the environment.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE.API_KEY });
 
 const systemInstruction = `Eres un asistente informativo y amigable para adolescentes que tienen preguntas sobre sus medicamentos. Tu propósito es dar información general y fácil de entender. NO eres un profesional médico. Al final de CADA respuesta, DEBES incluir este descargo de responsabilidad obligatorio: "Importante: Soy un asistente de IA y esta información no reemplaza el consejo de un médico. Siempre consulta a tu doctor o farmacéutico para cualquier pregunta médica."`;
 
