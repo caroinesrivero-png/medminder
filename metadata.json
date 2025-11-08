@@ -1,0 +1,5 @@
+{
+  "name": "MedMinder: Recordatorio de Remedios",
+  "description": "Una aplicación amigable para ayudar a los adolescentes a recordar tomar sus medicamentos a tiempo. Incluye un asistente de IA para responder preguntas generales sobre medicamentos.",
+  "requestFramePermissions": []
+}
