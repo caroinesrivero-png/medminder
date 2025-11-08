@@ -26,17 +26,6 @@ const formatAppointmentDate = (dateString: string) => {
     });
 }
 
-// A2HS Event type (not standard in TS lib)
-interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[];
-  readonly userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed';
-    platform: string;
-  }>;
-  prompt(): Promise<void>;
-}
-
-
 // Main App Component
 const App: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'reminders' | 'journal' | 'appointments' | 'archive'>('reminders');
@@ -58,11 +47,6 @@ const App: React.FC = () => {
     const [archivedFiles, setArchivedFiles] = useState<ArchivedFile[]>([]);
 
     const { permission, requestPermission, showNotification } = useNotifications();
-
-    // PWA Install Prompt State
-    const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-    const [showInstallBanner, setShowInstallBanner] = useState(false);
-    const [isIos, setIsIos] = useState(false);
 
     const [modalState, setModalState] = useState<{
         isOpen: boolean;
@@ -92,42 +76,7 @@ const App: React.FC = () => {
       position: { top: 0, left: 0 },
     });
 
-    // --- PWA & DATA PERSISTENCE EFFECTS ---
-
-    // Service Worker Registration and Install Prompt Listener
-    useEffect(() => {
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('Service Worker registered.', reg))
-                    .catch(err => console.error('Service Worker registration failed:', err));
-            });
-        }
-        
-        const isIosDevice = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
-        const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
-        
-        setIsIos(isIosDevice);
-
-        const handleBeforeInstallPrompt = (e: Event) => {
-            e.preventDefault();
-            setInstallPrompt(e as BeforeInstallPromptEvent);
-            if (!isInStandaloneMode) {
-               setShowInstallBanner(true);
-            }
-        };
-        
-        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        
-        if (isIosDevice && !isInStandaloneMode) {
-            setShowInstallBanner(true);
-        }
-
-        return () => {
-            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        };
-    }, []);
-
+    // --- DATA PERSISTENCE EFFECTS ---
 
     // Load data from localStorage on initial render
     useEffect(() => {
@@ -344,16 +293,6 @@ const App: React.FC = () => {
         setTooltip({ medId: null, content: '', isLoading: false, position: { top: 0, left: 0 } });
     };
 
-    // --- PWA INSTALL HANDLER ---
-    const handleInstallClick = async () => {
-        if (!installPrompt) return;
-        installPrompt.prompt();
-        const { outcome } = await installPrompt.userChoice;
-        console.log(`User response to the install prompt: ${outcome}`);
-        setInstallPrompt(null);
-        setShowInstallBanner(false);
-    };
-
     // --- JOURNAL LOGIC ---
     
     const addJournalEntry = (e: FormEvent) => {
@@ -490,7 +429,7 @@ const App: React.FC = () => {
             return (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M5.523 3.523A2.25 2.25 0 017.773 2H14.25a2.25 2.25 0 012.25 2.25v11.5a2.25 2.25 0 01-2.25 2.25H5.75a2.25 2.25 0 01-2.25-2.25V7.773c0-.817.474-1.555 1.223-1.93l3.6-1.8a.75.75 0 01.954.717V12a1 1 0 102 0V6a1 1 0 10-2 0v.18a.75.75 0 01-1.43.434l-3.6-1.8a.75.75 0 01-.22-.531z" />
-                   <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h.01a.75.75 0 010 1.5H3.75A.75.75 0 013 10zm0-2.25a.75.75 0 01.75-.75h3.01a.75.75 0 010 1.5H3.75A.75.75 0 013 7.75zM3 12.25a.75.75 0 01.75-.75h3.01a.75.75 0 010 1.5H3.75A.75.75 0 01-.75-.75zM4.75 6a.75.75 0 01.75-.75h.01a.75.75 0 010 1.5H5.5a.75.75 0 01-.75-.75z" clipRule="evenodd" />
+                   <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h.01a.75.75 0 010 1.5H3.75A.75.75 0 013 10zm0-2.25a.75.75 0 01.75-.75h3.01a.75.75 0 010 1.5H3.75A.75.75 0 013 7.75zM3 12.25a.75.75 0 01.75-.75h3.01a.75.75 0 010 1.5H3.75A.75.75 0 013 12.25zM4.75 6a.75.75 0 01.75-.75h.01a.75.75 0 010 1.5H5.5a.75.75 0 01-.75-.75z" clipRule="evenodd" />
                 </svg>
             );
         }
@@ -499,57 +438,6 @@ const App: React.FC = () => {
                 <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
             </svg>
         );
-    };
-
-    const renderInstallBanner = () => {
-        if (!showInstallBanner) return null;
-    
-        if (installPrompt) {
-          return (
-            <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 max-w-md bg-indigo-600 text-white p-4 rounded-lg shadow-lg flex items-center justify-between z-50 animate-fade-in">
-              <div className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <div className="ml-3">
-                  <p className="font-bold">Instala MedMinder</p>
-                  <p className="text-sm text-indigo-200">Accede más rápido desde tu pantalla de inicio.</p>
-                </div>
-              </div>
-              <div className="flex items-center">
-                <button onClick={handleInstallClick} className="bg-white text-indigo-600 font-bold py-1 px-3 rounded-md hover:bg-indigo-100 transition-colors">
-                  Instalar
-                </button>
-                <button onClick={() => setShowInstallBanner(false)} className="ml-2 p-1 text-indigo-200 hover:text-white rounded-full" aria-label="Cerrar">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          );
-        }
-    
-        if (isIos) {
-          return (
-            <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 max-w-md bg-indigo-600 text-white p-4 rounded-lg shadow-lg flex items-center justify-between z-50 animate-fade-in">
-              <div className="flex items-center">
-                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                <div className="ml-3">
-                  <p className="font-bold">Instala MedMinder</p>
-                  <p className="text-sm text-indigo-200">Toca el ícono de Compartir y "Agregar a Inicio".</p>
-                </div>
-              </div>
-              <button onClick={() => setShowInstallBanner(false)} className="ml-2 p-1 text-indigo-200 hover:text-white rounded-full flex-shrink-0" aria-label="Cerrar">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          );
-        }
-    
-        return null;
     };
 
     return (
@@ -613,8 +501,6 @@ const App: React.FC = () => {
                     </div>
                 </div>
             )}
-
-            {renderInstallBanner()}
 
             <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
                 <header className="p-4 sm:p-6 bg-indigo-600 text-white">
@@ -822,48 +708,58 @@ const App: React.FC = () => {
                                     ))
                                 ) : (
                                     <div className="text-center py-8 px-4 bg-gray-50 rounded-lg">
-                                       <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                       </svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
                                         <p className="mt-4 text-gray-500">No tienes turnos agendados.</p>
-                                        <p className="text-sm text-gray-400">Usa el formulario para agregar tu próxima cita.</p>
+                                        <p className="text-sm text-gray-400">¡Usa el formulario para agregar tu próximo turno!</p>
                                     </div>
                                 )}
                             </div>
-                        </div>
+                       </div>
                     )}
                     {activeTab === 'archive' && (
                         <div className="animate-fade-in">
-                            <div className="flex justify-between items-center mb-4">
-                               <h2 className="text-2xl font-bold text-gray-800">Archivo de Estudios</h2>
-                               <label className="bg-teal-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors cursor-pointer">
-                                   <span>Subir Archivo</span>
-                                   <input type="file" multiple className="hidden" onChange={handleFileChange} accept="image/*,application/pdf" />
-                               </label>
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6">Archivo de Documentos</h2>
+                            <div className="mb-8 p-6 border-2 border-dashed border-gray-300 rounded-lg text-center bg-indigo-50 hover:bg-indigo-100 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                </svg>
+                                <p className="mt-2 text-sm text-gray-600">Arrastra y suelta archivos aquí, o</p>
+                                <label htmlFor="file-upload" className="relative cursor-pointer mt-2 inline-block bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    <span>Seleccionar archivos</span>
+                                    <input id="file-upload" name="file-upload" type="file" multiple className="sr-only" onChange={handleFileChange} />
+                                </label>
                             </div>
-                           
-                            <div className="space-y-3">
+                            
+                            <h3 className="text-xl font-bold text-gray-800 mb-4">Mis Documentos</h3>
+                             <div className="space-y-3">
                                 {archivedFiles.length > 0 ? (
                                     archivedFiles.map(file => (
-                                        <div key={file.id} className="p-4 rounded-lg flex items-center justify-between bg-white shadow-sm">
-                                            <div className="flex items-center space-x-4 overflow-hidden">
-                                               <FileIcon mimeType={file.mimeType} />
-                                                <a href={file.dataUrl} download={file.name} target="_blank" rel="noopener noreferrer" className="font-medium text-gray-800 hover:text-indigo-600 truncate" title={file.name}>
-                                                  {file.name}
-                                                </a>
+                                        <div key={file.id} className="p-3 rounded-lg flex items-center justify-between bg-white shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="flex items-center space-x-4 flex-1 min-w-0">
+                                                <FileIcon mimeType={file.mimeType} />
+                                                <div className="flex-1 min-w-0">
+                                                    <a href={file.dataUrl} download={file.name} className="font-medium text-gray-800 truncate block hover:text-indigo-600" title={file.name}>
+                                                        {file.name}
+                                                    </a>
+                                                    <p className="text-sm text-gray-500">{file.mimeType}</p>
+                                                </div>
                                             </div>
-                                            <button onClick={() => deleteFile(file.id)} className="p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 flex-shrink-0" aria-label="Delete File">
-                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                            </button>
+                                            <div className="ml-4 flex-shrink-0">
+                                                <button onClick={() => deleteFile(file.id)} className="p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500" aria-label="Delete File">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                </button>
+                                            </div>
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="text-center py-8 px-4 bg-gray-50 rounded-lg">
-                                       <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                       </svg>
-                                        <p className="mt-4 text-gray-500">No hay archivos guardados.</p>
-                                        <p className="text-sm text-gray-400">Sube tus análisis o estudios para mantenerlos organizados.</p>
+                                     <div className="text-center py-8 px-4 bg-gray-50 rounded-lg">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <p className="mt-4 text-gray-500">Tu archivo está vacío.</p>
+                                        <p className="text-sm text-gray-400">Sube recetas, estudios o cualquier documento importante.</p>
                                     </div>
                                 )}
                             </div>
