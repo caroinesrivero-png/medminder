@@ -26,6 +26,16 @@ const formatAppointmentDate = (dateString: string) => {
     });
 }
 
+// A2HS Event type (not standard in TS lib)
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
+
 
 // Main App Component
 const App: React.FC = () => {
@@ -48,6 +58,10 @@ const App: React.FC = () => {
     const [archivedFiles, setArchivedFiles] = useState<ArchivedFile[]>([]);
 
     const { permission, requestPermission, showNotification } = useNotifications();
+
+    // PWA Install Prompt State
+    const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+    const [showInstallBanner, setShowInstallBanner] = useState(false);
 
     const [modalState, setModalState] = useState<{
         isOpen: boolean;
@@ -77,7 +91,32 @@ const App: React.FC = () => {
       position: { top: 0, left: 0 },
     });
 
-    // --- DATA PERSISTENCE EFFECTS ---
+    // --- PWA & DATA PERSISTENCE EFFECTS ---
+
+    // Service Worker Registration and Install Prompt Listener
+    useEffect(() => {
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered.', reg))
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            });
+        }
+
+        // Listen for 'beforeinstallprompt' event
+        const handleBeforeInstallPrompt = (e: Event) => {
+            e.preventDefault();
+            setInstallPrompt(e as BeforeInstallPromptEvent);
+            setShowInstallBanner(true); // Show custom install banner
+        };
+        
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        };
+    }, []);
 
     // Load data from localStorage on initial render
     useEffect(() => {
@@ -294,6 +333,16 @@ const App: React.FC = () => {
         setTooltip({ medId: null, content: '', isLoading: false, position: { top: 0, left: 0 } });
     };
 
+    // --- PWA INSTALL HANDLER ---
+    const handleInstallClick = async () => {
+        if (!installPrompt) return;
+        installPrompt.prompt();
+        const { outcome } = await installPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        setInstallPrompt(null);
+        setShowInstallBanner(false);
+    };
+
     // --- JOURNAL LOGIC ---
     
     const addJournalEntry = (e: FormEvent) => {
@@ -394,18 +443,22 @@ const App: React.FC = () => {
         const files = e.target.files;
         if (!files) return;
 
-        for (const file of Array.from(files)) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const newFile: ArchivedFile = {
-                    id: generateId(),
-                    name: file.name,
-                    mimeType: file.type,
-                    dataUrl: event.target?.result as string,
+        // FIX: Replaced for...of loop with an indexed loop to correctly type `file` as `File` and prevent type errors.
+        for (let i = 0; i < files.length; i++) {
+            const file = files.item(i);
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const newFile: ArchivedFile = {
+                        id: generateId(),
+                        name: file.name,
+                        mimeType: file.type,
+                        dataUrl: event.target?.result as string,
+                    };
+                    setArchivedFiles(prev => [...prev, newFile]);
                 };
-                setArchivedFiles(prev => [...prev, newFile]);
-            };
-            reader.readAsDataURL(file);
+                reader.readAsDataURL(file);
+            }
         }
         e.target.value = ''; // Allow uploading the same file again
     };
@@ -426,7 +479,7 @@ const App: React.FC = () => {
             return (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M5.523 3.523A2.25 2.25 0 017.773 2H14.25a2.25 2.25 0 012.25 2.25v11.5a2.25 2.25 0 01-2.25 2.25H5.75a2.25 2.25 0 01-2.25-2.25V7.773c0-.817.474-1.555 1.223-1.93l3.6-1.8a.75.75 0 01.954.717V12a1 1 0 102 0V6a1 1 0 10-2 0v.18a.75.75 0 01-1.43.434l-3.6-1.8a.75.75 0 01-.22-.531z" />
-                   <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h.01a.75.75 0 010 1.5H3.75A.75.75 0 013 10zm0-2.25a.75.75 0 01.75-.75h3.01a.75.75 0 010 1.5H3.75A.75.75 0 013 7.75zM3 12.25a.75.75 0 01.75-.75h3.01a.75.75 0 010 1.5H3.75a.75.75 0 01-.75-.75zM4.75 6a.75.75 0 01.75-.75h.01a.75.75 0 010 1.5H5.5a.75.75 0 01-.75-.75z" clipRule="evenodd" />
+                   <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h.01a.75.75 0 010 1.5H3.75A.75.75 0 013 10zm0-2.25a.75.75 0 01.75-.75h3.01a.75.75 0 010 1.5H3.75A.75.75 0 013 7.75zM3 12.25a.75.75 0 01.75-.75h3.01a.75.75 0 010 1.5H3.75A.75.75 0 01-.75-.75zM4.75 6a.75.75 0 01.75-.75h.01a.75.75 0 010 1.5H5.5a.75.75 0 01-.75-.75z" clipRule="evenodd" />
                 </svg>
             );
         }
@@ -495,6 +548,26 @@ const App: React.FC = () => {
                                 <p className="text-gray-800" style={{ whiteSpace: 'pre-wrap' }}>{modalState.response}</p>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {showInstallBanner && (
+                <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 max-w-md bg-indigo-600 text-white p-4 rounded-lg shadow-lg flex items-center justify-between z-50 animate-fade-in">
+                    <div className="flex items-center">
+                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        <div className="ml-3">
+                            <p className="font-bold">Instala MedMinder</p>
+                            <p className="text-sm text-indigo-200">Accede más rápido desde tu pantalla de inicio.</p>
+                        </div>
+                    </div>
+                     <div className="flex items-center">
+                        <button onClick={handleInstallClick} className="bg-white text-indigo-600 font-bold py-1 px-3 rounded-md hover:bg-indigo-100 transition-colors">
+                            Instalar
+                        </button>
+                        <button onClick={() => setShowInstallBanner(false)} className="ml-2 p-1 text-indigo-200 hover:text-white rounded-full" aria-label="Cerrar">
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
                     </div>
                 </div>
             )}

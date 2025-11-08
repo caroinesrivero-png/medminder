@@ -1,0 +1,21 @@
+{
+  "short_name": "MedMinder",
+  "name": "MedMinder: Recordatorio de Remedios",
+  "icons": [
+    {
+      "src": "https://www.gstatic.com/images/branding/product/1x/google_cloud_192dp.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://www.gstatic.com/images/branding/product/1x/google_cloud_512dp.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#6366f1",
+  "background_color": "#f3e8ff",
+  "description": "Una aplicación amigable para ayudar a los adolescentes a recordar tomar sus medicamentos a tiempo."
+}
